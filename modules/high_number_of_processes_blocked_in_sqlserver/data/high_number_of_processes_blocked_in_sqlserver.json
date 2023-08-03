@@ -1,0 +1,166 @@
+{
+  "name": "high_number_of_processes_blocked_in_sqlserver",
+  "description": "This incident type involves a high number of processes being blocked in SQLServer. It may cause delays or errors in database operations and can impact the performance of the system.",
+  "params": [
+    {
+      "name": "DATABASE_NAME",
+      "value": ""
+    },
+    {
+      "name": "SQLSERVER",
+      "value": ""
+    },
+    {
+      "name": "TABLE_NAME",
+      "value": ""
+    },
+    {
+      "name": "PATH_TO_ERROR_LOG_FILE",
+      "value": ""
+    },
+    {
+      "name": "SERVER_NAME",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## High number of processes blocked in SQLServer\nThis incident type involves a high number of processes being blocked in SQLServer. It may cause delays or errors in database operations and can impact the performance of the system."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Next Step"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_cpu_usage_sqlserver($SQLSERVER)"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 2. Check the memory usage of the SQLServer process."
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `Get-Process -Name ${SQLSERVER} | Select-Object -Property WorkingSet`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 3. Check the blocked processes in SQLServer."
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `Invoke-Sqlcmd -ServerInstance ${SERVER_NAME} -Database ${DATABASE_NAME} -Query \"SELECT * FROM sys.dm_exec_requests WHERE blocking_session_id <> 0\"`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 4. Check the top queries that are causing the blocking."
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `Invoke-Sqlcmd -ServerInstance ${SERVER_NAME} -Database ${DATABASE_NAME} -Query \"SELECT TOP 10 * FROM sys.dm_exec_query_stats CROSS APPLY sys.dm_exec_sql_text(plan_handle) WHERE execution_count > 0 AND last_execution_time > DATEADD(minute, -5, GETDATE()) ORDER BY total_worker_time DESC\"`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 5. Check the current state of the SQLServer."
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `Get-Service -Name ${SQLSERVER}`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 6. Check the SQLServer error logs for any relevant messages."
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `Get-Content \"${PATH_TO_ERROR_LOG_FILE}\" | Select-String -Pattern \"blocked\", \"error\", \"warning\"`"
+    },
+    {
+      "name": "cell_14",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Define input parameters"
+    },
+    {
+      "name": "cell_15",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_rename_script($DATABASE_NAME, $TABLE_NAME)"
+    },
+    {
+      "name": "cell_16",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check for inefficient queries"
+    },
+    {
+      "name": "cell_17",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_inefficient_queries_check($TABLE_NAME, $SERVER_NAME)"
+    },
+    {
+      "name": "cell_18",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Kill any long-running or blocking processes manually or automatically using a script."
+    },
+    {
+      "name": "cell_19",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_kill_long_running_blocking_processes()"
+    },
+    {
+      "name": "cell_20",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the database for inefficiencies in queries or indexes that could potentially cause blocking. Optimize the queries or add indexes to improve performance."
+    },
+    {
+      "name": "cell_21",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_optimize_indexes_queries($DATABASE_NAME, $TABLE_NAME)"
+    }
+  ]
+}
